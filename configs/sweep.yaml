@@ -1,0 +1,11 @@
+method: random
+metric:
+  name: val/score
+  goal: maximize
+parameters:
+  lr:
+    values: [0.01, 0.03, 0.08]
+  hidden:
+    values: [8, 16, 32]
+  seed:
+    values: [1, 2, 3]

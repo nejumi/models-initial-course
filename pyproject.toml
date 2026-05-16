@@ -1,0 +1,28 @@
+[project]
+name = "models-initial-course"
+version = "0.1.0"
+description = "W&B Models 2 hour initial course"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "wandb>=0.19.0",
+    "python-dotenv>=1.0.0",
+    "numpy>=1.24.0",
+    "matplotlib>=3.7.0",
+    "pillow>=10.0.0",
+]
+
+[project.optional-dependencies]
+hf = [
+    "torch>=2.0.0",
+    "transformers>=4.40.0,<5",
+    "accelerate>=0.26.0",
+]
+test = [
+    "nbformat>=5.10.0",
+    "nbclient>=0.10.0",
+    "ipykernel>=6.0.0",
+]
+all = [
+    "models-initial-course[hf,test]",
+]

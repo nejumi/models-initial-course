@@ -1,0 +1,10 @@
+.env
+.venv/
+tmp/
+__pycache__/
+.ipynb_checkpoints/
+wandb/
+artifacts/
+outputs/**
+!outputs/.gitkeep
+*.pdf
