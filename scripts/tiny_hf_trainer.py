@@ -1,12 +1,21 @@
 """Tiny Hugging Face Trainer demo without external model downloads."""
 
+from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from course_utils import REPO_ROOT, setup_wandb, tiny_hf_trainer_objects
 import os
+os.chdir(REPO_ROOT)
+project, entity, _ = setup_wandb(
+    packages=["numpy>=1.24.0", "torch>=2.0.0", "transformers>=4.40.0,<5", "accelerate>=0.26.0"]
+)
+os.environ["WANDB_PROJECT"] = project
+if entity:
+    os.environ["WANDB_ENTITY"] = entity
+
 import wandb
 from transformers import Trainer, TrainingArguments
-
-from course_utils import tiny_hf_trainer_objects
-
-os.environ.setdefault("WANDB_PROJECT", "models-initial-course")
 
 model, train_dataset = tiny_hf_trainer_objects()
 args = TrainingArguments(
@@ -20,5 +29,7 @@ args = TrainingArguments(
     disable_tqdm=True,
 )
 trainer = Trainer(model=model, args=args, train_dataset=train_dataset)
-trainer.train()
-wandb.finish()
+try:
+    trainer.train()
+finally:
+    wandb.finish()

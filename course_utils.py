@@ -5,86 +5,95 @@ The notebooks keep W&B concepts visible and put setup / toy data details here.
 
 from __future__ import annotations
 
-import importlib.util
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
-_PACKAGE_IMPORTS = {
-    "python-dotenv": "dotenv",
-    "pillow": "PIL",
-    "imageio-ffmpeg": "imageio_ffmpeg",
-}
-
-
-def _package_name(spec: str) -> str:
-    for marker in ["[", ">=", "==", "<=", "~=", "<"]:
-        if marker in spec:
-            return spec.split(marker)[0]
-    return spec
+REPO_ROOT = Path(__file__).resolve().parent
 
 
 def ensure_packages(packages: list[str] | tuple[str, ...]) -> None:
-    """Install missing packages only."""
-    missing: list[str] = []
-    for spec in packages:
-        package = _package_name(spec)
-        import_name = _PACKAGE_IMPORTS.get(package, package.replace("-", "_"))
-        if importlib.util.find_spec(import_name) is None:
-            missing.append(spec)
-
-    if not missing:
+    """Resolve version constraints and extras, including for installed packages."""
+    if not packages:
         return
-
-    print("Installing:", ", ".join(missing))
     if shutil.which("uv"):
-        cmd = ["uv", "pip", "install", "--python", sys.executable, "-q", *missing]
+        cmd = ["uv", "pip", "install", "--python", sys.executable, "-q", *packages]
     else:
-        cmd = [sys.executable, "-m", "pip", "install", "-q", *missing]
+        cmd = [sys.executable, "-m", "pip", "install", "-q", *packages]
     subprocess.check_call(cmd)
 
 
 def load_wandb_env() -> None:
-    """Load WANDB_* variables from Colab Secrets or local .env."""
+    """Load local settings, then any accessible Colab Secrets."""
+    from dotenv import load_dotenv
+
+    load_dotenv(REPO_ROOT / ".env")
     try:
-        from google.colab import userdata  # type: ignore
+        from google.colab import userdata
+    except ImportError:
+        return
 
-        for key in ["WANDB_API_KEY", "WANDB_BASE_URL", "WANDB_ENTITY", "WANDB_PROJECT"]:
+    for key in ["WANDB_API_KEY", "WANDB_BASE_URL", "WANDB_ENTITY", "WANDB_PROJECT"]:
+        try:
             value = userdata.get(key)
-            if value:
-                os.environ[key] = value.strip()
-        print("Loaded W&B settings from Colab Secrets.")
-    except Exception:
-        from dotenv import load_dotenv
+        except userdata.SecretNotFoundError:
+            continue
+        except userdata.NotebookAccessError as exc:
+            raise RuntimeError(
+                f"Colab Secrets の {key} で、このノートブックへのアクセスを許可してください。"
+            ) from exc
+        if value and value.strip():
+            os.environ[key] = value.strip()
 
-        load_dotenv(Path(".env"))
-        print("Loaded W&B settings from .env if present.")
 
-    if not os.environ.get("WANDB_BASE_URL", "").strip():
-        os.environ.pop("WANDB_BASE_URL", None)
+def wandb_base_url() -> str:
+    """Use Multi-tenant SaaS unless a Dedicated Cloud host is configured."""
+    from urllib.parse import urlsplit
+
+    value = os.environ.get("WANDB_BASE_URL", "").strip() or "https://api.wandb.ai"
+    parsed = urlsplit(value)
+    if (
+        parsed.scheme not in {"http", "https"}
+        or not parsed.netloc
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {"", "/"}
+        or parsed.query
+        or parsed.fragment
+    ):
+        raise ValueError(
+            "WANDB_BASE_URL は接続先の URL のみを指定してください "
+            "(例: https://your-org.wandb.io)。project のパスは不要です。"
+        )
+    return value.rstrip("/")
 
 
 def setup_wandb(project: str = "models-initial-course", packages: list[str] | None = None):
-    """Install packages, load secrets, log in, and return W&B init kwargs."""
+    """Prepare dependencies and return project, entity, and wandb.init arguments."""
     ensure_packages(["wandb>=0.19.0", "python-dotenv>=1.0.0", *(packages or [])])
     load_wandb_env()
-
-    if not os.environ.get("WANDB_API_KEY"):
-        raise RuntimeError("WANDB_API_KEY を Colab Secrets または .env に設定してください。")
+    base_url = wandb_base_url()
+    os.environ["WANDB_BASE_URL"] = base_url
 
     import wandb
 
-    wandb.login(key=os.environ["WANDB_API_KEY"], relogin=True)
+    if os.environ.get("WANDB_MODE") != "offline":
+        key = os.environ.get("WANDB_API_KEY", "").strip()
+        if key:
+            wandb.login(key=key, host=base_url, relogin=True)
+        else:
+            # The SDK can reuse a login saved for this host, or prompt for a key.
+            wandb.login(host=base_url)
 
-    project_name = os.environ.get("WANDB_PROJECT", project)
-    entity = os.environ.get("WANDB_ENTITY") or None
+    project_name = os.environ.get("WANDB_PROJECT", "").strip() or project
+    entity = os.environ.get("WANDB_ENTITY", "").strip() or None
     init_kwargs = {"project": project_name}
     if entity:
         init_kwargs["entity"] = entity
 
-    print(f"W&B login OK: project={project_name}, entity={entity or '(default)'}")
+    print(f"W&B: host={base_url}, project={project_name}, entity={entity or '(default)'}")
     return project_name, entity, init_kwargs
 
 
@@ -251,7 +260,9 @@ def demo_point_cloud_rgb(n: int = 80):
 
 def demo_lidar_scene():
     """Return a small lidar/beta scene with points and a 3D box."""
-    points = demo_point_cloud_rgb(40).tolist()
+    import numpy as np
+
+    points = demo_point_cloud_rgb(40)
     corners = [
         [-0.5, -0.5, -0.5], [0.5, -0.5, -0.5], [0.5, 0.5, -0.5], [-0.5, 0.5, -0.5],
         [-0.5, -0.5, 0.5], [0.5, -0.5, 0.5], [0.5, 0.5, 0.5], [-0.5, 0.5, 0.5],
@@ -259,7 +270,7 @@ def demo_lidar_scene():
     return {
         "type": "lidar/beta",
         "points": points,
-        "boxes": [{"corners": corners, "label": "demo object", "color": [255, 204, 51], "score": 0.9}],
+        "boxes": np.array([{"corners": corners, "label": "demo object", "color": [255, 204, 51], "score": 0.9}]),
     }
 
 
@@ -268,11 +279,11 @@ def write_demo_pdb(path: str | Path) -> str:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
-        "HEADER    W&B COURSE DEMO\\n"
-        "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O\\n"
-        "ATOM      2  H1  HOH A   1       0.758   0.000   0.504  1.00 20.00           H\\n"
-        "ATOM      3  H2  HOH A   1      -0.758   0.000   0.504  1.00 20.00           H\\n"
-        "END\\n"
+        "HEADER    W&B COURSE DEMO\n"
+        "ATOM      1  O   HOH A   1       0.000   0.000   0.000  1.00 20.00           O\n"
+        "ATOM      2  H1  HOH A   1       0.758   0.000   0.504  1.00 20.00           H\n"
+        "ATOM      3  H2  HOH A   1      -0.758   0.000   0.504  1.00 20.00           H\n"
+        "END\n"
     )
     return str(path)
 

@@ -1,56 +1,95 @@
 # W&B Models 2時間コース
 
-W&B Models の基本を 2 時間で学ぶための教材リポジトリです。スライドの座学と notebook の演習が同じ順番で進むように構成しています。
+実験の指標、コード、出力ファイルを W&B に記録し、結果を比較するための教材です。
 
-## コース構成
+## 演習の順番
 
-| # | Notebook | スライドで学ぶこと | 実際に動かすこと |
-|---|---|---|---|
-| 00 | [環境セットアップ](notebooks/00_setup/00_environment_setup.ipynb) | ログイン、API key、Entity / Project / Run | W&B に 1 run 作成して疎通確認 |
-| 01 | [init / log / finish](notebooks/01_basics/01_minimal_tracking.ipynb) | Run は実験ノート、config と metrics | 合成データで 2 runs を記録し比較 |
-| 02 | [迷ったら残すテンプレート](notebooks/01_basics/02_save_code_and_outputs.ipynb) | `run.log_code` と `run.save` | JSON / Markdown を run に保存し、コードを記録 |
-| 03 | [Integrations Overview](notebooks/02_integrations/01_integrations_overview.ipynb) | 既存 framework / OSS からの W&B 連携 | Hugging Face Trainer の W&B integration を実行 |
-| 04 | [Artifacts](notebooks/03_core/01_artifacts.ipynb) | `run.save` と Artifact の使い分け、lineage | `add_file` / `add_dir` / `add_reference` と `use_artifact` |
-| 05 | [Tables と Media](notebooks/03_core/02_tables_media.ipynb) | 定性評価、誤り分析、media logging | Image / overlay / Table / Audio / Video / HTML / 3D / Molecule / Plot を log |
-| 06 | [Sweeps / Reports / Automations](notebooks/04_workflows/01_sweeps_reports_automations.ipynb) | 条件探索、共有、自動化 | 小さな sweep を 3 runs 実行し、Report/Automation の型を確認 |
+| 順番 | Notebook | 実行すること |
+|---|---|---|
+| 00 | [環境セットアップ](notebooks/00_setup/00_environment_setup.ipynb) | 接続先を設定し、1 run を作成 |
+| 00b | [道路画像のセグメンテーション](notebooks/00_setup/01_segmentation_quickstart.ipynb) | U-Net を短く学習し、loss と予測マスクを W&B で見る |
+| 01 | [基本の実験記録](notebooks/01_basics/01_minimal_tracking.ipynb) | 練習用の数値を記録。基本の1 runと比較用の2 runsを作成 |
+| 02 | [コードと出力の保存](notebooks/01_basics/02_save_code_and_outputs.ipynb) | スクリプトを作成・実行し、コードと JSON / Markdown を保存 |
+| 03 | [Hugging Face Trainer 連携](notebooks/02_integrations/01_integrations_overview.ipynb) | 小さなモデルを5 steps学習し、loss の自動記録を確認 |
+| 04 | [Artifacts](notebooks/03_core/01_artifacts.ipynb) | ファイル・ディレクトリ・URI参照を登録し、別 run から利用 |
+| 05 | [Tables と Media](notebooks/03_core/02_tables_media.ipynb) | 画像、音声、動画、Table、3D、分子構造、グラフを記録 |
+| 06 | [Sweeps / Reports / Automations](notebooks/04_workflows/01_sweeps_reports_automations.ipynb) | 3条件の Sweep を実行。Report の構成と通知の用途を確認 |
 
+Media は画像と Table を授業中に試し、残りを後から参照する使い方もできます。
+Reports と Automations は説明のみです。通知設定には接続先の権限やプランが関係します。
 
-## Notebook の方針
+## 接続先の設定
 
-- 00-03 は初学者が章の焦点にすぐ入れるよう、W&B の本題コードを短くしています。
-- 04 Artifacts と 05 Tables/Media は、講座後にも参照できる実例集として、近い API パターンを複数含めています。
-- Colab で notebook 単体を開いた場合でも動くよう、共通 helper は必要に応じて GitHub raw から取得します。ローカルで `git clone` することは必須ではありません。
+標準は **Multi-tenant SaaS** です。`WANDB_BASE_URL` が未設定または空欄なら `https://api.wandb.ai` を使います。
 
-## セットアップ
+**Dedicated Cloud** の場合は、管理者から案内された接続先 URL を設定してください。
+例: `https://your-org.wandb.io`。project や run のパスは付けません。
+API key は **その接続先で発行したもの** を使います。
 
-### ローカル
+| 設定 | 内容 |
+|---|---|
+| `WANDB_API_KEY` | 接続先で発行した API key。ローカルでログイン済みなら省略可 |
+| `WANDB_BASE_URL` | 任意。空欄は Multi-tenant SaaS、URL指定は Dedicated Cloud 等の接続先 |
+| `WANDB_ENTITY` | 任意。実験を保存するチーム。空欄はアカウントの既定値 |
+| `WANDB_PROJECT` | 任意。空欄は `models-initial-course` |
 
-```bash
-cp .env.example .env
-# .env に WANDB_API_KEY を設定
-uv venv .venv
-uv pip install --python .venv/bin/python -r requirements.txt
-```
+接続先を切り替えるときはカーネル／Colab ランタイムを再起動してください。
 
 ### Google Colab
 
-各 notebook 上部の **Open in Colab** ボタンから開き、左サイドバーの **Secrets** に以下を登録してください。
+各 Notebook の **Open in Colab** から開きます。
+左サイドバーの **Secrets** に設定を登録し、Notebook からのアクセスを許可してください。
+SaaS なら `WANDB_BASE_URL` の登録は不要です。他の任意設定は、それぞれ独立して読み込まれます。
+共通コードは GitHub から取得するため、clone は不要です。
 
-| 変数 | 必須 | 説明 |
-|---|---:|---|
-| `WANDB_API_KEY` | yes | W&B API key |
-| `WANDB_BASE_URL` | no | Dedicated Cloud URL。SaaS の場合は未設定 |
-| `WANDB_ENTITY` | no | team / user entity。未設定なら default entity |
-| `WANDB_PROJECT` | no | project 名。未設定なら `models-initial-course` |
+### ローカル
 
-## 関連資料
+Python 3.10以上と [uv](https://docs.astral.sh/uv/getting-started/installation/) を用意します。
 
-スライドデック作成用のブリーフは [docs/wandb-models-course-claude-design-brief.md](docs/wandb-models-course-claude-design-brief.md) にあります。
+```bash
+git clone https://github.com/nejumi/models-initial-course.git
+cd models-initial-course
+cp .env.example .env
+# .env に接続先の API key と、必要な場合は Dedicated Cloud の URL を設定
+uv venv --python 3.11 .venv
+uv pip install --python .venv/bin/python -r requirements.txt
+.venv/bin/python -m ipykernel install --prefix .venv --name models-initial-course --display-name "Models Course"
+.venv/bin/jupyter lab
+```
 
-単体で参照しやすい media logging サンプルとして、[WandBのマルチメディア、全部logするColabサンプル](WandBのマルチメディア、全部logするColabサンプル%20(1).ipynb) も置いています。内容は course の [Tables と Media](notebooks/03_core/02_tables_media.ipynb) と揃えています。
+Notebook では **Models Course** カーネルを選び、上から実行します。
+Windows では `.venv/bin/` を `.venv/Scripts/` に読み替え、環境ファイルをコピーしてください。
+準備セルがリポジトリのルートに移動するため、Notebook のフォルダから開いても同じ `.env` と出力先を使います。
+ローカルでは `.env` を読み込みます。すでに設定した環境変数を優先します。Colab では登録済みの Secrets を優先します。
 
-## 注意
+## 実行環境
 
-- API key を notebook や git に書かないでください。
-- `run.log_code` や `run.save` で `.env`、credential、大容量データを保存しないでください。
-- Integration notebook では、外部モデルをダウンロードしない小さな Hugging Face Trainer を使います。実際の研究コードでは、TRL、PyTorch Lightning、LeRobot など、利用している framework や repo の W&B integration 設定を確認してください。
+Python 3.10以上のローカルPC、Jupyter、Google Colabを想定しています。
+GPU は必須ではありません。導入のセグメンテーションでは CUDA GPU があれば使い、なければ CPU で学習します。
+初回はパッケージ、CamVid tiny、ResNet18 の重みをダウンロードします。
+ネットワーク制限がある環境では、それぞれの配布元へのアクセスが必要です。
+
+## 動作確認
+
+```bash
+make test
+make test-offline
+# GPU を使わない経路も確認する場合
+.venv/bin/python scripts/execute_notebooks.py --offline --cpu
+# 接続先と API key を設定して、Artifacts / Sweep を含む全教材を実行
+make test-notebooks
+```
+
+オフライン検証は W&B への送信を止め、学習・ファイル生成・media のシリアライズを確認します。
+パッケージやデータの初回ダウンロードにはインターネット接続が必要です。
+サーバーへのアップロード、W&B App の表示、Artifact の取得、Sweep はオンライン確認が必要です。
+実行結果と失敗セルの出力は `outputs/executed/` に保存されます。
+
+[検証環境・結果・未確認の範囲](docs/validation.md) を記録しています。
+
+## 教材を編集する方へ
+
+[スライド制作メモ](docs/wandb-models-course-claude-design-brief.md) は講師・制作者向けです。
+
+API key や `.env` を Notebook、Git、W&B の保存対象に含めないでください。
+Artifact の `file://` 参照は同じファイルにアクセスできる環境でのみ利用できます。

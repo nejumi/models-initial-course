@@ -1,11 +1,9 @@
-method: random
+# notebooks/04_workflows/01_sweeps_reports_automations.ipynb と同じ設定です。
+# Notebook 内の train 関数を wandb.agent に渡して使用します。
+method: grid
 metric:
-  name: val/score
-  goal: maximize
+  name: val/loss
+  goal: minimize
 parameters:
   lr:
-    values: [0.01, 0.03, 0.08]
-  hidden:
-    values: [8, 16, 32]
-  seed:
-    values: [1, 2, 3]
+    values: [0.01, 0.03, 0.1]
