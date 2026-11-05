@@ -11,6 +11,7 @@ torchvision 0.29.2、Transformers 4.57.6 で確認しました。
 | 全8 Notebook のオンライン実行 | 成功。学習は SUNK の H100 で実行 |
 | CPU 実行 | 6 Notebook 成功。同計算ノードで GPU を無効化して実行 |
 | 単体 Python スクリプト2本 | CPU・W&B offline で成功 |
+| clone なしの Notebook 起動 | 空の作業フォルダで共通コードを GitHub から取得し、コード・出力保存の演習に成功 |
 | W&B 保存内容 | コード、JSON、4行の予測Table、Artifact取得、3条件のSweepをAPIで確認 |
 | パッケージ依存関係 | `uv pip check` 成功 |
 
@@ -55,4 +56,3 @@ make test-notebooks
 ```
 
 GitHub Actions でも、CPU 版 PyTorch を使って回帰テストと offline の Notebook 実行を行います。
-
