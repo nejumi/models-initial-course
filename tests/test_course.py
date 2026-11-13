@@ -139,6 +139,19 @@ class ContentTests(unittest.TestCase):
                     configs.append(ast.literal_eval(node.value))
         self.assertEqual(configs, [yaml.safe_load((course.REPO_ROOT / "configs/sweep.yaml").read_text())])
 
+    def test_segmentation_logs_metrics_and_table_to_explicit_run(self):
+        """00b must keep all acceptance outputs on the run created in the notebook."""
+        path = course.REPO_ROOT / "notebooks/00_setup/01_segmentation_quickstart.ipynb"
+        nb = nbformat.read(path, as_version=4)
+        source = "\n".join(cell.source for cell in nb.cells if cell.cell_type == "code")
+
+        for metric in ["train/loss", "valid/loss", "valid/pixel_accuracy"]:
+            self.assertIn(f'"{metric}"', source)
+        self.assertIn('run.log({"predictions": table})', source)
+        self.assertIn('run.define_metric("train/*"', source)
+        self.assertIn('run.define_metric("valid/*"', source)
+        self.assertNotIn("wandb.log(", source)
+
 
 if __name__ == "__main__":
     unittest.main()
